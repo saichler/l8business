@@ -4,7 +4,8 @@ class BusinessDirectory {
         this.businesses = [];
         this.filteredBusinesses = [];
         this.currentPage = 1;
-        this.itemsPerPage = 12;
+        this.itemsPerPage = 20;
+        this.totalRecords = 0;
         this.currentView = 'grid';
         this.filters = {
             city: '',
@@ -13,12 +14,14 @@ class BusinessDirectory {
             search: ''
         };
         this.sortBy = 'name';
+        this.bearerToken = localStorage.getItem('bearerToken') || null;
 
         this.init();
     }
 
     async init() {
         this.showLoading(true);
+        this.updateAuthUI();
         await this.loadData();
         this.setupEventListeners();
         this.renderBusinesses();
@@ -26,23 +29,44 @@ class BusinessDirectory {
         this.showLoading(false);
     }
 
-    async loadData() {
+    async loadData(page = 0) {
         try {
             // Fetch data from backend API
-            const response = await fetch('/api/businesses');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (this.bearerToken) {
+                headers['Authorization'] = `Bearer ${this.bearerToken}`;
+            }
+
+            const queryBody = {
+                text: `select * from Business where taxid=* limit ${this.itemsPerPage} page ${page}`
+            };
+
+            const url = `/service/0/Business?body=${encodeURIComponent(JSON.stringify(queryBody))}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers
+            });
             const data = await response.json();
 
             this.businesses = data.list || [];
             this.stats = data.stats || {};
+            this.totalRecords = this.stats.Total || 0;
 
             this.filteredBusinesses = [...this.businesses];
-            this.updateStats();
-            this.populateFilters();
+
+            // Only update stats and filters on initial load (page 0)
+            if (page === 0) {
+                this.updateStats();
+                this.populateFilters();
+            }
         } catch (error) {
             console.error('Error loading data:', error);
             // Fallback to empty array if API fails
             this.businesses = [];
             this.filteredBusinesses = [];
+            this.totalRecords = 0;
         }
     }
 
@@ -88,18 +112,24 @@ class BusinessDirectory {
         });
 
         // Pagination
-        document.getElementById('prevPage').addEventListener('click', () => {
+        document.getElementById('prevPage').addEventListener('click', async () => {
             if (this.currentPage > 1) {
                 this.currentPage--;
+                this.showLoading(true);
+                await this.loadData(this.currentPage - 1);
                 this.renderBusinesses();
+                this.showLoading(false);
             }
         });
 
-        document.getElementById('nextPage').addEventListener('click', () => {
-            const totalPages = Math.ceil(this.filteredBusinesses.length / this.itemsPerPage);
+        document.getElementById('nextPage').addEventListener('click', async () => {
+            const totalPages = Math.ceil(this.totalRecords / this.itemsPerPage);
             if (this.currentPage < totalPages) {
                 this.currentPage++;
+                this.showLoading(true);
+                await this.loadData(this.currentPage - 1);
                 this.renderBusinesses();
+                this.showLoading(false);
             }
         });
 
@@ -131,6 +161,30 @@ class BusinessDirectory {
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
+        });
+
+        // Login functionality
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            this.showLoginModal();
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            this.logout();
+        });
+
+        document.getElementById('loginModalClose').addEventListener('click', () => {
+            this.closeLoginModal();
+        });
+
+        document.getElementById('loginModal').addEventListener('click', (e) => {
+            if (e.target.id === 'loginModal') {
+                this.closeLoginModal();
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.handleLogin(e);
         });
     }
 
@@ -248,18 +302,14 @@ class BusinessDirectory {
 
     renderBusinesses() {
         const grid = document.getElementById('businessGrid');
-        const start = (this.currentPage - 1) * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        const pageBusinesses = this.filteredBusinesses.slice(start, end);
-
         grid.innerHTML = '';
 
-        if (pageBusinesses.length === 0) {
+        if (this.filteredBusinesses.length === 0) {
             grid.innerHTML = '<p style="text-align: center; color: var(--text-light); padding: 2rem;">No businesses found matching your criteria.</p>';
             return;
         }
 
-        pageBusinesses.forEach(business => {
+        this.filteredBusinesses.forEach(business => {
             const card = this.createBusinessCard(business);
             grid.appendChild(card);
         });
@@ -269,7 +319,7 @@ class BusinessDirectory {
 
     createBusinessCard(business) {
         const card = document.createElement('div');
-        card.className = 'service-card';
+        card.className = 'bservice-card';
         card.onclick = () => this.showBusinessDetails(business);
 
         card.innerHTML = `
@@ -349,7 +399,7 @@ class BusinessDirectory {
     }
 
     updatePagination() {
-        const totalPages = Math.ceil(this.filteredBusinesses.length / this.itemsPerPage);
+        const totalPages = Math.ceil(this.totalRecords / this.itemsPerPage);
 
         document.getElementById('currentPage').textContent = this.currentPage;
         document.getElementById('totalPages').textContent = totalPages;
@@ -377,7 +427,7 @@ class BusinessDirectory {
     }
 
     updateStats() {
-        const totalBusinesses = this.businesses.length;
+        const totalBusinesses = this.totalRecords;
         const cities = new Set(this.businesses.map(b => b.city).filter(Boolean));
         const segments = new Set(this.businesses.map(b => b.segment).filter(Boolean));
 
@@ -514,6 +564,91 @@ class BusinessDirectory {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    async handleLogin(e) {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('loginError');
+
+        errorDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/auth', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user: username,
+                    pass: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (data && data.token) {
+                // Successful login
+                this.bearerToken = data.token;
+                localStorage.setItem('bearerToken', data.token);
+                this.updateAuthUI();
+                this.closeLoginModal();
+                document.getElementById('loginForm').reset();
+
+                // Reload data with new token
+                this.showLoading(true);
+                this.currentPage = 1;
+                await this.loadData(0);
+                this.renderBusinesses();
+                this.showLoading(false);
+            } else {
+                // Failed login
+                errorDiv.textContent = 'Invalid username or password';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            errorDiv.textContent = 'An error occurred during login. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    }
+
+    logout() {
+        this.bearerToken = null;
+        localStorage.removeItem('bearerToken');
+        this.updateAuthUI();
+
+        // Reload data without token
+        this.showLoading(true);
+        this.currentPage = 1;
+        this.loadData(0).then(() => {
+            this.renderBusinesses();
+            this.showLoading(false);
+        });
+    }
+
+    showLoginModal() {
+        document.getElementById('loginModal').classList.add('active');
+        document.getElementById('username').focus();
+    }
+
+    closeLoginModal() {
+        document.getElementById('loginModal').classList.remove('active');
+        document.getElementById('loginForm').reset();
+        document.getElementById('loginError').style.display = 'none';
+    }
+
+    updateAuthUI() {
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        if (this.bearerToken) {
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
+        } else {
+            loginBtn.style.display = 'block';
+            logoutBtn.style.display = 'none';
+        }
     }
 }
 

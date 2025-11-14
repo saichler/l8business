@@ -1,27 +1,29 @@
 syntax = "proto3";
 
-package business;
+package l8business;
 
 option java_multiple_files = true;
-option java_outer_classname = "Business";
-option java_package = "com.service.types";
-option go_package = "./types/service";
+option java_outer_classname = "L8Business";
+option java_package = "com.l8business.types";
+option go_package = "/types/l8business";
 
 // Metadata contains information about the data source and collection
-message Metadata {
+message L8Metadata {
   string source = 1;
   string downloaded_at = 2;
   int32 total_businesses = 3;
   repeated string cities = 4;
+  map<string, int32> breakdown = 5;
+  string description = 6;
 }
 
-message BusinessList {
-  repeated Business list = 1;
+message L8BusinessList {
+  repeated L8Business list = 1;
   map<string, int32> stats = 2;
 }
 
 // Business represents a small business entity
-message Business {
+message L8Business {
   string source = 1;
   string name = 2;
   string owner = 3;
@@ -38,7 +40,7 @@ message Business {
 }
 
 // BusinessData is the root message containing all businesses and metadata
-message BusinessData {
-  Metadata metadata = 1;
-  repeated Business businesses = 2;
+message L8BusinessData {
+  L8Metadata metadata = 1;
+  repeated L8Business businesses = 2;
 }

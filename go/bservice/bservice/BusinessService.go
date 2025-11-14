@@ -1,12 +1,11 @@
-package service
+package bservice
 
 import (
 	"os"
-	"strconv"
 
 	"github.com/saichler/l8bus/go/overlay/protocol"
 	"github.com/saichler/l8bus/go/overlay/vnic"
-	"github.com/saichler/l8business/go/types/business"
+	"github.com/saichler/l8business/go/types/l8business"
 	"github.com/saichler/l8reflect/go/reflect/introspecting"
 	"github.com/saichler/l8services/go/services/base"
 	"github.com/saichler/l8types/go/ifs"
@@ -31,16 +30,17 @@ func StartWebServer(port int, cert string) {
 		Port:           port,
 		Authentication: true,
 		CertName:       cert,
-		Prefix:         "service",
+		Prefix:         "/bservice/",
 	}
 	svr, err := server.NewRestServer(serverConfig)
 	if err != nil {
 		panic(err)
 	}
 
-	nic := createVnic(VNET, nil)
+	nic := CreateVnic(VNET, "web")
+	Activate(nic)
 
-	//Activate the webpoints service
+	//Activate the webpoints bservice
 	sla := ifs.NewServiceLevelAgreement(&server.WebService{}, ifs.WebService, 0, false, nil)
 	sla.SetArgs(svr)
 	nic.Resources().Services().Activate(sla, nic)
@@ -50,21 +50,20 @@ func StartWebServer(port int, cert string) {
 	svr.Start()
 }
 
-func createVnic(vnet uint32, other ifs.IResources) ifs.IVNic {
-	resources := common.CreateResources3("web-"+strconv.Itoa(int(vnet)), "", other)
+func CreateVnic(vnet uint32, name string) ifs.IVNic {
+	resources := common.CreateResources3(name, "", nil)
 	resources.SysConfig().VnetPort = vnet
 
-	node, _ := resources.Introspector().Inspect(&business.Business{})
+	node, _ := resources.Introspector().Inspect(&l8business.L8Business{})
 	introspecting.AddPrimaryKeyDecorator(node, "TaxId")
 
 	nic := vnic.NewVirtualNetworkInterface(resources, nil)
 	nic.Resources().SysConfig().KeepAliveIntervalSeconds = 60
 	nic.Start()
 	nic.WaitForConnection()
-	Activate(nic)
 
-	nic.Resources().Registry().Register(&business.Business{})
-	nic.Resources().Registry().Register(&business.BusinessList{})
+	nic.Resources().Registry().Register(&l8business.L8Business{})
+	nic.Resources().Registry().Register(&l8business.L8BusinessList{})
 	nic.Resources().Registry().Register(&l8api.L8Query{})
 	nic.Resources().Registry().Register(&l8web.L8Empty{})
 	nic.Resources().Registry().Register(&l8health.L8Health{})
@@ -76,13 +75,19 @@ func createVnic(vnet uint32, other ifs.IResources) ifs.IVNic {
 func Activate(vnic ifs.IVNic) {
 	serviceConfig := ifs.NewServiceLevelAgreement(&base.BaseService{}, ServiceName, ServiceArea, true, nil)
 
-	serviceConfig.SetServiceItem(&business.Business{})
-	serviceConfig.SetServiceItemList(&business.BusinessList{})
+	serviceConfig.SetServiceItem(&l8business.L8Business{})
+	serviceConfig.SetServiceItemList(&l8business.L8BusinessList{})
 	serviceConfig.SetPrimaryKeys("TaxId")
 
-	meta := &business.BusinessData{}
-	data, _ := os.ReadFile("bay.json")
-	protojson.Unmarshal(data, meta)
+	meta := &l8business.L8BusinessData{}
+	data, err := os.ReadFile("bay.json")
+	if err != nil {
+		panic("1" + err.Error())
+	}
+	err = protojson.Unmarshal(data, meta)
+	if err != nil {
+		panic("2" + err.Error())
+	}
 	initData := []interface{}{}
 	for _, b := range meta.Businesses {
 		initData = append(initData, b)
@@ -96,6 +101,6 @@ func Activate(vnic ifs.IVNic) {
 		nil, nil,
 		nil, nil,
 		nil, nil,
-		&l8api.L8Query{}, &business.BusinessList{}))
+		&l8api.L8Query{}, &l8business.L8BusinessList{}))
 	base.Activate(serviceConfig, vnic)
 }

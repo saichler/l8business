@@ -26,6 +26,8 @@
             <div class="header-actions">
                 <input type="search" id="searchInput" class="search-input" placeholder="Search businesses...">
                 <button class="btn-primary" id="advancedSearchBtn">Advanced Search</button>
+                <button class="btn-secondary" id="loginBtn">Login</button>
+                <button class="btn-secondary" id="logoutBtn" style="display: none;">Logout</button>
             </div>
         </div>
     </header>
@@ -223,6 +225,26 @@
             <div id="modalBody">
                 <!-- Business details will be inserted here -->
             </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content login-modal">
+            <span class="modal-close" id="loginModalClose">&times;</span>
+            <h2 style="color: var(--primary-color); margin-bottom: 1.5rem; text-align: center;">Login</h2>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required class="form-input" placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required class="form-input" placeholder="Enter your password">
+                </div>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+                <button type="submit" class="btn-primary btn-full-width">Login</button>
+            </form>
         </div>
     </div>
 
