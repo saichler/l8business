@@ -10,7 +10,7 @@ import (
 )
 
 func TestJson(t *testing.T) {
-	bd := &l8business.L8Business{}
+	bd := &l8business.L8BusinessData{}
 	data, _ := os.ReadFile("bay.json")
 	err := protojson.Unmarshal(data, bd)
 	if err != nil {

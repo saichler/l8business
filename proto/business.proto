@@ -7,6 +7,8 @@ option java_outer_classname = "L8Business";
 option java_package = "com.l8business.types";
 option go_package = "/types/l8business";
 
+import "api.proto";
+
 // Metadata contains information about the data source and collection
 message L8Metadata {
   string source = 1;
@@ -20,6 +22,7 @@ message L8Metadata {
 message L8BusinessList {
   repeated L8Business list = 1;
   map<string, int32> stats = 2;
+  l8api.L8Maps maps = 3;
 }
 
 // Business represents a small business entity

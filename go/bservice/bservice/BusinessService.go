@@ -30,7 +30,7 @@ func StartWebServer(port int, cert string) {
 		Port:           port,
 		Authentication: true,
 		CertName:       cert,
-		Prefix:         "/bservice/",
+		Prefix:         "/service/",
 	}
 	svr, err := server.NewRestServer(serverConfig)
 	if err != nil {

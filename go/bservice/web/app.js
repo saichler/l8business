@@ -29,7 +29,7 @@ class BusinessDirectory {
         this.showLoading(false);
     }
 
-    async loadData(page = 0) {
+    async loadData(page = 0, applyFilters = false) {
         try {
             // Fetch data from backend API
             const headers = {
@@ -39,8 +39,30 @@ class BusinessDirectory {
                 headers['Authorization'] = `Bearer ${this.bearerToken}`;
             }
 
+            // Build query with filters
+            let whereClause = 'where taxid=*';
+
+            if (applyFilters) {
+                if (this.filters.city) {
+                    const cityValue = this.filters.city.includes(' ') ? `'${this.filters.city}'` : this.filters.city;
+                    whereClause += ` and city=${cityValue}`;
+                }
+                if (this.filters.state) {
+                    const stateValue = this.filters.state.includes(' ') ? `'${this.filters.state}'` : this.filters.state;
+                    whereClause += ` and state=${stateValue}`;
+                }
+                if (this.filters.segment) {
+                    const segmentValue = this.filters.segment.includes(' ') ? `'${this.filters.segment}'` : this.filters.segment;
+                    whereClause += ` and segment=${segmentValue}`;
+                }
+                if (this.filters.search) {
+                    const searchValue = this.filters.search.includes(' ') ? `'*${this.filters.search}*'` : `*${this.filters.search}*`;
+                    whereClause += ` and name=${searchValue}`;
+                }
+            }
+
             const queryBody = {
-                text: `select * from Business where taxid=* limit ${this.itemsPerPage} page ${page}`
+                text: `select * from L8Business ${whereClause} limit ${this.itemsPerPage} page ${page}`
             };
 
             const url = `/service/0/Business?body=${encodeURIComponent(JSON.stringify(queryBody))}`;
@@ -57,7 +79,7 @@ class BusinessDirectory {
             this.filteredBusinesses = [...this.businesses];
 
             // Only update stats and filters on initial load (page 0)
-            if (page === 0) {
+            if (page === 0 && !applyFilters) {
                 this.updateStats();
                 this.populateFilters();
             }
@@ -116,7 +138,8 @@ class BusinessDirectory {
             if (this.currentPage > 1) {
                 this.currentPage--;
                 this.showLoading(true);
-                await this.loadData(this.currentPage - 1);
+                const hasFilters = this.filters.city || this.filters.state || this.filters.segment || this.filters.search;
+                await this.loadData(this.currentPage - 1, hasFilters);
                 this.renderBusinesses();
                 this.showLoading(false);
             }
@@ -127,7 +150,8 @@ class BusinessDirectory {
             if (this.currentPage < totalPages) {
                 this.currentPage++;
                 this.showLoading(true);
-                await this.loadData(this.currentPage - 1);
+                const hasFilters = this.filters.city || this.filters.state || this.filters.segment || this.filters.search;
+                await this.loadData(this.currentPage - 1, hasFilters);
                 this.renderBusinesses();
                 this.showLoading(false);
             }
@@ -229,43 +253,13 @@ class BusinessDirectory {
         });
     }
 
-    applyFilters() {
-        this.filteredBusinesses = this.businesses.filter(business => {
-            let matches = true;
-
-            if (this.filters.city && business.city !== this.filters.city) {
-                matches = false;
-            }
-
-            if (this.filters.state && business.state !== this.filters.state) {
-                matches = false;
-            }
-
-            if (this.filters.segment && business.segment !== this.filters.segment) {
-                matches = false;
-            }
-
-            if (this.filters.search) {
-                const searchFields = [
-                    business.name,
-                    business.owner,
-                    business.city,
-                    business.state,
-                    business.segment,
-                    business.address
-                ].map(f => (f || '').toLowerCase());
-
-                matches = matches && searchFields.some(field =>
-                    field.includes(this.filters.search)
-                );
-            }
-
-            return matches;
-        });
-
-        this.sortBusinesses();
+    async applyFilters() {
+        // Reset to page 1 and reload data with server-side filtering
         this.currentPage = 1;
+        this.showLoading(true);
+        await this.loadData(0, true);
         this.renderBusinesses();
+        this.showLoading(false);
     }
 
     sortBusinesses() {
