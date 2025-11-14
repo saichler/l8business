@@ -1,0 +1,13 @@
+FROM saichler/builder:latest AS build
+
+COPY main.go /home/src/github.com/saichler/build/main.go
+COPY bay.json /home/src/github.com/saichler/build/bay.json
+RUN go mod init
+RUN GOPROXY=direct GOPRIVATE=github.com go mod tidy
+RUN go build -o bweb
+
+FROM saichler/probler-security:latest AS final
+COPY --from=build /home/src/github.com/saichler/build/bweb /home/run/bweb
+COPY ./web /home/run/web
+
+ENTRYPOINT ["/home/run/bweb"]
