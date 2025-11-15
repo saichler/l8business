@@ -73,16 +73,24 @@ class BusinessDirectory {
             const data = await response.json();
 
             this.businesses = data.list || [];
-            this.stats = data.stats || {};
-            this.totalRecords = this.stats.Total || 0;
+
+            // Only process metadata from page 0, disregard metadata from pages 1..n
+            if (page === 0) {
+                this.metadata = data.metadata || null;
+
+                // Only update totalRecords from page 0 metadata
+                if (this.metadata?.keyCount?.counts?.Total) {
+                    this.totalRecords = this.metadata.keyCount.counts.Total;
+                }
+
+                // Update stats and filters when metadata is available (including filtered results)
+                if (this.metadata) {
+                    this.updateStats();
+                    this.populateFilters();
+                }
+            }
 
             this.filteredBusinesses = [...this.businesses];
-
-            // Only update stats and filters on initial load (page 0)
-            if (page === 0 && !applyFilters) {
-                this.updateStats();
-                this.populateFilters();
-            }
         } catch (error) {
             console.error('Error loading data:', error);
             // Fallback to empty array if API fails
@@ -224,23 +232,42 @@ class BusinessDirectory {
     }
 
     populateFilters() {
-        const cities = new Set();
-        const states = new Set();
-        const segments = new Set();
+        // Use metadata.valueCount if available (more efficient)
+        if (this.metadata && this.metadata.valueCount) {
+            const cityValues = this.metadata.valueCount.city?.counts
+                ? Object.keys(this.metadata.valueCount.city.counts).sort()
+                : [];
+            const stateValues = this.metadata.valueCount.state?.counts
+                ? Object.keys(this.metadata.valueCount.state.counts).sort()
+                : [];
+            const segmentValues = this.metadata.valueCount.segment?.counts
+                ? Object.keys(this.metadata.valueCount.segment.counts).sort()
+                : [];
 
-        this.businesses.forEach(business => {
-            if (business.city) cities.add(business.city);
-            if (business.state) states.add(business.state);
-            if (business.segment) segments.add(business.segment);
-        });
+            this.populateSelect('cityFilter', cityValues);
+            this.populateSelect('stateFilter', stateValues);
+            this.populateSelect('segmentFilter', segmentValues);
+        } else {
+            // Fallback to iterating through businesses if metadata not available
+            const cities = new Set();
+            const states = new Set();
+            const segments = new Set();
 
-        this.populateSelect('cityFilter', Array.from(cities).sort());
-        this.populateSelect('stateFilter', Array.from(states).sort());
-        this.populateSelect('segmentFilter', Array.from(segments).sort());
+            this.businesses.forEach(business => {
+                if (business.city) cities.add(business.city);
+                if (business.state) states.add(business.state);
+                if (business.segment) segments.add(business.segment);
+            });
+
+            this.populateSelect('cityFilter', Array.from(cities).sort());
+            this.populateSelect('stateFilter', Array.from(states).sort());
+            this.populateSelect('segmentFilter', Array.from(segments).sort());
+        }
     }
 
     populateSelect(id, options) {
         const select = document.getElementById(id);
+        const currentValue = select.value; // Preserve current selection
         const placeholder = select.querySelector('option[value=""]');
         select.innerHTML = '';
         select.appendChild(placeholder);
@@ -251,6 +278,11 @@ class BusinessDirectory {
             opt.textContent = option;
             select.appendChild(opt);
         });
+
+        // Restore the selected value if it still exists in the new options
+        if (currentValue && options.includes(currentValue)) {
+            select.value = currentValue;
+        }
     }
 
     async applyFilters() {
@@ -422,12 +454,26 @@ class BusinessDirectory {
 
     updateStats() {
         const totalBusinesses = this.totalRecords;
-        const cities = new Set(this.businesses.map(b => b.city).filter(Boolean));
-        const segments = new Set(this.businesses.map(b => b.segment).filter(Boolean));
+
+        // Use metadata counts if available, otherwise calculate from businesses
+        let totalCities, totalSegments;
+        if (this.metadata && this.metadata.valueCount) {
+            totalCities = this.metadata.valueCount.city?.counts
+                ? Object.keys(this.metadata.valueCount.city.counts).length
+                : 0;
+            totalSegments = this.metadata.valueCount.segment?.counts
+                ? Object.keys(this.metadata.valueCount.segment.counts).length
+                : 0;
+        } else {
+            const cities = new Set(this.businesses.map(b => b.city).filter(Boolean));
+            const segments = new Set(this.businesses.map(b => b.segment).filter(Boolean));
+            totalCities = cities.size;
+            totalSegments = segments.size;
+        }
 
         this.animateNumber('totalBusinesses', totalBusinesses);
-        this.animateNumber('totalCities', cities.size);
-        this.animateNumber('totalSegments', segments.size);
+        this.animateNumber('totalCities', totalCities);
+        this.animateNumber('totalSegments', totalSegments);
 
         // Update charts if available
         this.renderCharts();

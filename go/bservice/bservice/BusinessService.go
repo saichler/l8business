@@ -102,5 +102,25 @@ func Activate(vnic ifs.IVNic) {
 		nil, nil,
 		nil, nil,
 		&l8api.L8Query{}, &l8business.L8BusinessList{}))
+
+	serviceConfig.AddMetadataFunc("city", City)
+	serviceConfig.AddMetadataFunc("segment", Segment)
+	serviceConfig.AddMetadataFunc("state", State)
+
 	base.Activate(serviceConfig, vnic)
+}
+
+func City(any interface{}) (bool, string) {
+	b := any.(*l8business.L8Business)
+	return true, b.City
+}
+
+func Segment(any interface{}) (bool, string) {
+	b := any.(*l8business.L8Business)
+	return true, b.Segment
+}
+
+func State(any interface{}) (bool, string) {
+	b := any.(*l8business.L8Business)
+	return true, b.State
 }
