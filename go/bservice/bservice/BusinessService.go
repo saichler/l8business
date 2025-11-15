@@ -2,19 +2,26 @@ package bservice
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/saichler/l8bus/go/overlay/protocol"
 	"github.com/saichler/l8bus/go/overlay/vnic"
 	"github.com/saichler/l8business/go/types/l8business"
 	"github.com/saichler/l8reflect/go/reflect/introspecting"
 	"github.com/saichler/l8services/go/services/base"
+	"github.com/saichler/l8services/go/services/manager"
 	"github.com/saichler/l8types/go/ifs"
 	"github.com/saichler/l8types/go/types/l8api"
 	"github.com/saichler/l8types/go/types/l8health"
+	"github.com/saichler/l8types/go/types/l8sysconfig"
 	"github.com/saichler/l8types/go/types/l8web"
+	"github.com/saichler/l8utils/go/utils/logger"
+	"github.com/saichler/l8utils/go/utils/registry"
+	"github.com/saichler/l8utils/go/utils/resources"
 	"github.com/saichler/l8utils/go/utils/web"
 	"github.com/saichler/l8web/go/web/server"
-	"github.com/saichler/probler/go/prob/common"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -51,8 +58,7 @@ func StartWebServer(port int, cert string) {
 }
 
 func CreateVnic(vnet uint32, name string) ifs.IVNic {
-	resources := common.CreateResources3(name, "", nil)
-	resources.SysConfig().VnetPort = vnet
+	resources := CreateResources(name)
 
 	node, _ := resources.Introspector().Inspect(&l8business.L8Business{})
 	introspecting.AddPrimaryKeyDecorator(node, "TaxId")
@@ -123,4 +129,40 @@ func Segment(any interface{}) (bool, string) {
 func State(any interface{}) (bool, string) {
 	b := any.(*l8business.L8Business)
 	return true, b.State
+}
+
+func CreateResources(alias string) ifs.IResources {
+	log := logger.NewLoggerImpl(&logger.FmtLogMethod{})
+	log.SetLogLevel(ifs.Error_Level)
+	res := resources.NewResources(log)
+
+	res.Set(registry.NewRegistry())
+
+	sec, err := ifs.LoadSecurityProvider(res)
+	if err != nil {
+		time.Sleep(time.Second * 10)
+		panic(err.Error())
+	}
+	res.Set(sec)
+
+	conf := &l8sysconfig.L8SysConfig{MaxDataSize: resources.DEFAULT_MAX_DATA_SIZE,
+		RxQueueSize:              resources.DEFAULT_QUEUE_SIZE,
+		TxQueueSize:              resources.DEFAULT_QUEUE_SIZE,
+		LocalAlias:               alias,
+		VnetPort:                 uint32(VNET),
+		KeepAliveIntervalSeconds: 30}
+	res.Set(conf)
+
+	res.Set(introspecting.NewIntrospect(res.Registry()))
+	res.Set(manager.NewServices(res))
+
+	return res
+}
+
+func WaitForSignal(resources ifs.IResources) {
+	resources.Logger().Info("Waiting for os signal...")
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-sigs
+	resources.Logger().Info("End signal received! ", sig)
 }

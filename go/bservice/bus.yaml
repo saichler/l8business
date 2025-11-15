@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: business-vnet
+  labels:
+    name: business-vnet
+
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  namespace: business-vnet
+  name: business-vnet
+  labels:
+    app: business-vnet
+spec:
+  selector:
+    matchLabels:
+      app: business-vnet
+  template:
+    metadata:
+      labels:
+        app: business-vnet
+    spec:
+      hostNetwork: true
+      containers:
+        - name: business-vnet
+          image: saichler/business-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 22623
+          volumeMounts:
+            - name: hdata
+              mountPath: /data
+      volumes:
+        - name: hdata
+          hostPath:
+            path: /data
+            type: DirectoryOrCreate
