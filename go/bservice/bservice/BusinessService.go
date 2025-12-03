@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/saichler/l8bus/go/overlay/protocol"
 	"github.com/saichler/l8bus/go/overlay/vnic"
 	"github.com/saichler/l8business/go/types/l8business"
+	"github.com/saichler/l8reflect/go/reflect/helping"
 	"github.com/saichler/l8reflect/go/reflect/introspecting"
 	"github.com/saichler/l8services/go/services/base"
 	"github.com/saichler/l8services/go/services/manager"
@@ -17,6 +17,7 @@ import (
 	"github.com/saichler/l8types/go/types/l8health"
 	"github.com/saichler/l8types/go/types/l8sysconfig"
 	"github.com/saichler/l8types/go/types/l8web"
+	"github.com/saichler/l8utils/go/utils/ipsegment"
 	"github.com/saichler/l8utils/go/utils/logger"
 	"github.com/saichler/l8utils/go/utils/registry"
 	"github.com/saichler/l8utils/go/utils/resources"
@@ -33,7 +34,7 @@ const (
 
 func StartWebServer(port int, cert string) {
 	serverConfig := &server.RestServerConfig{
-		Host:           protocol.MachineIP,
+		Host:           ipsegment.MachineIP,
 		Port:           port,
 		Authentication: true,
 		CertName:       cert,
@@ -61,7 +62,7 @@ func CreateVnic(vnet uint32, name string) ifs.IVNic {
 	resources := CreateResources(name)
 
 	node, _ := resources.Introspector().Inspect(&l8business.L8Business{})
-	introspecting.AddPrimaryKeyDecorator(node, "TaxId")
+	helping.AddPrimaryKeyDecorator(node, "TaxId")
 
 	nic := vnic.NewVirtualNetworkInterface(resources, nil)
 	nic.Resources().SysConfig().KeepAliveIntervalSeconds = 60
