@@ -1,0 +1,18 @@
+{
+    "login": {
+        "appTitle": "Business Hub",
+        "appDescription": "Find and Connect With Businesses",
+        "authEndpoint": "/auth",
+        "redirectUrl": "/app/",
+        "showRememberMe": true,
+        "showRegister": true,
+        "sessionTimeout": 30,
+        "tfaEnabled": true
+    },
+    "api": {
+        "prefix": "/service",
+        "usersPath": "/73/users",
+        "rolesPath": "/74/roles",
+        "registryPath": "/registry"
+    }
+}

@@ -7,7 +7,7 @@ RUN go mod init
 RUN GOPROXY=direct GOPRIVATE=github.com go mod tidy
 RUN go build -o bweb
 
-FROM saichler/probler-security:latest AS final
+FROM saichler/business-security:latest AS final
 COPY --from=build /home/src/github.com/saichler/build/bweb /home/run/bweb
 COPY ./web /home/run/web
 COPY bay.json /home/run/bay.json
