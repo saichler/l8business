@@ -65,12 +65,8 @@ function setupEventListeners() {
 
 // Check for existing session
 function checkExistingSession() {
-    const token = localStorage.getItem('bearerToken');
-    if (token && LOGIN_CONFIG.redirectUrl) {
-        // Redirect if token exists
-        window.location.href = LOGIN_CONFIG.redirectUrl;
-        return;
-    }
+    // Always clear token when loading login page
+    localStorage.removeItem('bearerToken');
 
     // Check for remembered username
     const rememberedUser = localStorage.getItem('rememberedUser');

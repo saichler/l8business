@@ -206,6 +206,21 @@ body::before {
     text-decoration: underline;
 }
 
+/* Demo Credentials */
+.demo-credentials {
+    text-align: center;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-light);
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
+
+.demo-credentials strong {
+    color: var(--text-dark);
+}
+
 /* Login Button */
 .btn-login {
     width: 100%;

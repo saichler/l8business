@@ -8,13 +8,15 @@ metadata:
 ---
 
 apiVersion: apps/v1
-kind: DaemonSet
+kind: StatefulSet
 metadata:
   namespace: business-vnet
   name: business-vnet
   labels:
     app: business-vnet
 spec:
+  serviceName: business-net 
+  replicas: 1
   selector:
     matchLabels:
       app: business-vnet
