@@ -8,7 +8,6 @@ import (
 
 	"github.com/saichler/l8bus/go/overlay/vnic"
 	"github.com/saichler/l8business/go/types/l8business"
-	"github.com/saichler/l8reflect/go/reflect/helping"
 	"github.com/saichler/l8reflect/go/reflect/introspecting"
 	"github.com/saichler/l8services/go/services/base"
 	"github.com/saichler/l8services/go/services/manager"
@@ -60,9 +59,7 @@ func StartWebServer(port int, cert string) {
 
 func CreateVnic(vnet uint32, name string) ifs.IVNic {
 	resources := CreateResources(name)
-
-	node, _ := resources.Introspector().Inspect(&l8business.L8Business{})
-	helping.AddPrimaryKeyDecorator(node, "TaxId")
+	resources.Introspector().Decorators().AddPrimaryKeyDecorator(&l8business.L8Business{}, "TaxId")
 
 	nic := vnic.NewVirtualNetworkInterface(resources, nil)
 	nic.Resources().SysConfig().KeepAliveIntervalSeconds = 60
@@ -103,12 +100,8 @@ func Activate(vnic ifs.IVNic) {
 	serviceConfig.SetVoter(true)
 	serviceConfig.SetTransactional(false)
 
-	serviceConfig.SetWebService(web.New(ServiceName, ServiceArea,
-		nil, nil,
-		nil, nil,
-		nil, nil,
-		nil, nil,
-		&l8api.L8Query{}, &l8business.L8BusinessList{}))
+	webs := web.New(ServiceName, ServiceArea, 0)
+	webs.AddEndpoint(&l8api.L8Query{}, ifs.GET, &l8business.L8BusinessList{})
 
 	serviceConfig.AddMetadataFunc("city", City)
 	serviceConfig.AddMetadataFunc("segment", Segment)
