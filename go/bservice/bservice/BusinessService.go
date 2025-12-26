@@ -102,7 +102,8 @@ func Activate(vnic ifs.IVNic) {
 
 	webs := web.New(ServiceName, ServiceArea, 0)
 	webs.AddEndpoint(&l8api.L8Query{}, ifs.GET, &l8business.L8BusinessList{})
-
+	serviceConfig.SetWebService(webs)
+	
 	serviceConfig.AddMetadataFunc("city", City)
 	serviceConfig.AddMetadataFunc("segment", Segment)
 	serviceConfig.AddMetadataFunc("state", State)
